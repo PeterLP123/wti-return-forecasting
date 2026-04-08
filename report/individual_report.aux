@@ -1,0 +1,156 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\bibstyle{unsrtnat}
+\citation{gneiting2007strictly}
+\citation{lakshminarayanan2017simple,kuleshov2018accurate}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{3}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{1}{3}{Introduction}{section.1}{}}
+\citation{diebold1995comparing}
+\citation{christoffersen1998evaluating}
+\citation{cont2001empirical}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Data Analysis}{4}{section.2}\protected@file@percent }
+\newlabel{sec:data}{{2}{4}{Data Analysis}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Dataset and target variable}{4}{subsection.2.1}\protected@file@percent }
+\newlabel{eq:target}{{1}{4}{Dataset and target variable}{equation.2.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Train/validation/test split}{4}{subsection.2.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Walk-forward data split.\relax }}{4}{table.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:splits}{{1}{4}{Walk-forward data split.\relax }{table.caption.2}{}}
+\citation{hochreiter1997long}
+\citation{nix1994estimating}
+\citation{engle1982autoregressive,bollerslev1986generalized}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Test-set return distribution}{5}{subsection.2.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Summary statistics for test-set returns ($n = 348$).\relax }}{5}{table.caption.3}\protected@file@percent }
+\newlabel{tab:return_stats}{{2}{5}{Summary statistics for test-set returns ($n = 348$).\relax }{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Group project models}{5}{subsection.2.4}\protected@file@percent }
+\newlabel{eq:nll}{{2}{5}{Group project models}{equation.2.2}{}}
+\newlabel{eq:composite}{{3}{5}{Group project models}{equation.2.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Test-set return distribution. Top left: histogram with Gaussian and Student-$t$ MLE overlays. Top right: Q-Q plot of standardised $r_t$ against $\mathcal  {N}(0,1)$. Bottom left: P-P plot of $r_t$ against the fitted Gaussian. Bottom right: rolling 60-day realised volatility.\relax }}{6}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:eda}{{1}{6}{Test-set return distribution. Top left: histogram with Gaussian and Student-$t$ MLE overlays. Top right: Q-Q plot of standardised $r_t$ against $\mathcal {N}(0,1)$. Bottom left: P-P plot of $r_t$ against the fitted Gaussian. Bottom right: rolling 60-day realised volatility.\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{6}{section.3}\protected@file@percent }
+\newlabel{sec:methodology}{{3}{6}{Methodology}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Probabilistic calibration}{6}{subsection.3.1}\protected@file@percent }
+\newlabel{eq:coverage}{{4}{6}{Probabilistic calibration}{equation.3.4}{}}
+\citation{diebold1998evaluating}
+\citation{ljung1978measure}
+\newlabel{eq:pit}{{5}{7}{Probabilistic calibration}{equation.3.5}{}}
+\newlabel{eq:z}{{6}{7}{Probabilistic calibration}{equation.3.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Statistical tests}{7}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Kolmogorov--Smirnov test (Chapter 18, Section 18.3.3)}{7}{subsubsection.3.2.1}\protected@file@percent }
+\newlabel{eq:ks}{{7}{7}{Kolmogorov--Smirnov test (Chapter 18, Section 18.3.3)}{equation.3.7}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Anderson--Darling test (Chapter 18, Section 18.3.4)}{7}{subsubsection.3.2.2}\protected@file@percent }
+\newlabel{eq:ad}{{8}{7}{Anderson--Darling test (Chapter 18, Section 18.3.4)}{equation.3.8}{}}
+\citation{christoffersen1998evaluating}
+\citation{christoffersen1998evaluating}
+\citation{diebold1995comparing}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Ljung--Box test (Chapter 9)}{8}{subsubsection.3.2.3}\protected@file@percent }
+\newlabel{eq:lb}{{9}{8}{Ljung--Box test (Chapter 9)}{equation.3.9}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Interval coverage test}{8}{subsubsection.3.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.5}Out-of-sample negative log-likelihood (Chapter 18, Section 18.6)}{8}{subsubsection.3.2.5}\protected@file@percent }
+\newlabel{eq:gauss_nll}{{10}{8}{Out-of-sample negative log-likelihood (Chapter 18, Section 18.6)}{equation.3.10}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.6}Christoffersen conditional coverage test}{8}{subsubsection.3.2.6}\protected@file@percent }
+\newlabel{eq:cc}{{11}{8}{Christoffersen conditional coverage test}{equation.3.11}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.7}Diebold--Mariano test for predictive density comparison}{8}{subsubsection.3.2.7}\protected@file@percent }
+\citation{bollerslev1986generalized}
+\citation{kuleshov2018accurate}
+\newlabel{eq:dm}{{12}{9}{Diebold--Mariano test for predictive density comparison}{equation.3.12}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.8}Akaike Information Criterion (Chapter 18, Section 18.6)}{9}{subsubsection.3.2.8}\protected@file@percent }
+\newlabel{eq:aic}{{13}{9}{Akaike Information Criterion (Chapter 18, Section 18.6)}{equation.3.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}GARCH(1,1) benchmark}{9}{subsection.3.3}\protected@file@percent }
+\newlabel{eq:garch}{{14}{9}{GARCH(1,1) benchmark}{equation.3.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Conditional calibration}{9}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Student-$t$ extension (Chapter 14)}{10}{subsection.3.5}\protected@file@percent }
+\newlabel{eq:t_mle}{{15}{10}{Student-$t$ extension (Chapter 14)}{equation.3.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Limitations}{10}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{10}{section.4}\protected@file@percent }
+\newlabel{sec:results}{{4}{10}{Results}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Standardised residual diagnostics}{10}{subsection.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Summary statistics of standardised residuals $z_t$.\relax }}{10}{table.caption.5}\protected@file@percent }
+\newlabel{tab:z_stats}{{3}{10}{Summary statistics of standardised residuals $z_t$.\relax }{table.caption.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Standardised residuals and predicted volatility for the NLL LSTM (top row) and composite LSTM (bottom row). Left: $z_t$ over time with $\pm 1.96$ bands. Centre: histogram against $\mathcal  {N}(0,1)$. Right: predicted $\sigma _t$ versus 60-day rolling realised volatility.\relax }}{11}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:residuals}{{2}{11}{Standardised residuals and predicted volatility for the NLL LSTM (top row) and composite LSTM (bottom row). Left: $z_t$ over time with $\pm 1.96$ bands. Centre: histogram against $\mathcal {N}(0,1)$. Right: predicted $\sigma _t$ versus 60-day rolling realised volatility.\relax }{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Autocorrelation diagnostics}{11}{subsection.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Autocorrelation functions of $z_t$ (left column) and $|z_t|$ (right column) for the NLL LSTM (top) and composite LSTM (bottom). Dashed lines indicate the 95\% confidence band under the white-noise null.\relax }}{12}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:acf}{{3}{12}{Autocorrelation functions of $z_t$ (left column) and $|z_t|$ (right column) for the NLL LSTM (top) and composite LSTM (bottom). Dashed lines indicate the 95\% confidence band under the white-noise null.\relax }{figure.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Ljung--Box test at lag 10 for the standardised residuals and their absolute values.\relax }}{12}{table.caption.8}\protected@file@percent }
+\newlabel{tab:lb}{{4}{12}{Ljung--Box test at lag 10 for the standardised residuals and their absolute values.\relax }{table.caption.8}{}}
+\citation{diebold1998evaluating}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Formal distributional tests}{13}{subsection.4.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces KS and Anderson--Darling tests of $z_t$ against $\mathcal  {N}(0,1)$.\relax }}{13}{table.caption.9}\protected@file@percent }
+\newlabel{tab:ks_ad}{{5}{13}{KS and Anderson--Darling tests of $z_t$ against $\mathcal {N}(0,1)$.\relax }{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}PIT histograms}{13}{subsection.4.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces PIT histograms under the Gaussian predictive law. The dashed horizontal line indicates the uniform reference density. A perfectly calibrated model produces a flat histogram.\relax }}{14}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:pit}{{4}{14}{PIT histograms under the Gaussian predictive law. The dashed horizontal line indicates the uniform reference density. A perfectly calibrated model produces a flat histogram.\relax }{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Q-Q diagnostics}{14}{subsection.4.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Q-Q plots. Top row: $z_t$ vs $\mathcal  {N}(0,1)$ for the NLL LSTM (left) and composite LSTM (right). Bottom row: $z_t$ vs the fitted Student-$t$ distribution. Grey bands indicate 95\% pointwise confidence intervals.\relax }}{15}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:qq}{{5}{15}{Q-Q plots. Top row: $z_t$ vs $\mathcal {N}(0,1)$ for the NLL LSTM (left) and composite LSTM (right). Bottom row: $z_t$ vs the fitted Student-$t$ distribution. Grey bands indicate 95\% pointwise confidence intervals.\relax }{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}Interval coverage}{15}{subsection.4.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Interval coverage: empirical vs nominal under Gaussian and Student-$t$ predictive laws.\relax }}{16}{table.caption.12}\protected@file@percent }
+\newlabel{tab:coverage}{{6}{16}{Interval coverage: empirical vs nominal under Gaussian and Student-$t$ predictive laws.\relax }{table.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Calibration curve: empirical vs nominal coverage under the Gaussian predictive law. A perfectly calibrated model lies on the dashed 45-degree line.\relax }}{16}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:coverage_curve}{{6}{16}{Calibration curve: empirical vs nominal coverage under the Gaussian predictive law. A perfectly calibrated model lies on the dashed 45-degree line.\relax }{figure.caption.13}{}}
+\citation{diebold1995comparing}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.7}GARCH(1,1) benchmark}{17}{subsection.4.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.8}Out-of-sample likelihood comparison}{17}{subsection.4.8}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Out-of-sample NLL per observation and AIC. Lower NLL indicates better fit.\relax }}{17}{table.caption.14}\protected@file@percent }
+\newlabel{tab:nll}{{7}{17}{Out-of-sample NLL per observation and AIC. Lower NLL indicates better fit.\relax }{table.caption.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.9}Student-$t$ extension}{18}{subsection.4.9}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Student-$t$ extension: fitted degrees of freedom and KS test against $t_{\hat  {\nu }}(0,1)$.\relax }}{18}{table.caption.15}\protected@file@percent }
+\newlabel{tab:student_t}{{8}{18}{Student-$t$ extension: fitted degrees of freedom and KS test against $t_{\hat {\nu }}(0,1)$.\relax }{table.caption.15}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Q-Q plots of $z_t$ against the fitted Student-$t$ distribution: NLL LSTM (left, $\hat  {\nu } = 16.15$) and composite LSTM (right, $\hat  {\nu } = 29.07$).\relax }}{19}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:t_qq}{{7}{19}{Q-Q plots of $z_t$ against the fitted Student-$t$ distribution: NLL LSTM (left, $\hat {\nu } = 16.15$) and composite LSTM (right, $\hat {\nu } = 29.07$).\relax }{figure.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.10}Rolling calibration}{19}{subsection.4.10}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Rolling 60-day empirical coverage at the 95\% nominal level. The dashed line indicates the 0.95 reference.\relax }}{19}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:rolling_cov}{{8}{19}{Rolling 60-day empirical coverage at the 95\% nominal level. The dashed line indicates the 0.95 reference.\relax }{figure.caption.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Rolling 60-day correlation between predicted $\sigma _t$ and absolute returns $|r_t|$. Higher values indicate better real-time volatility tracking.\relax }}{20}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:rolling_corr}{{9}{20}{Rolling 60-day correlation between predicted $\sigma _t$ and absolute returns $|r_t|$. Higher values indicate better real-time volatility tracking.\relax }{figure.caption.18}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Conditional calibration: standardised residual distributions in high-volatility (top) and low-volatility (bottom) regimes, split at the median rolling 60-day realised volatility. Annotations show the KS $p$-value and excess kurtosis for each model--regime combination.\relax }}{21}{figure.caption.19}\protected@file@percent }
+\newlabel{fig:conditional}{{10}{21}{Conditional calibration: standardised residual distributions in high-volatility (top) and low-volatility (bottom) regimes, split at the median rolling 60-day realised volatility. Annotations show the KS $p$-value and excess kurtosis for each model--regime combination.\relax }{figure.caption.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.11}Christoffersen conditional coverage test}{22}{subsection.4.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.12}Position-sizing backtest}{22}{subsection.4.12}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Inverse-volatility position sizing backtest. Left: cumulative portfolio returns. Right: rolling 60-day annualised portfolio volatility against the target (dashed line). The NLL LSTM and GARCH track the target closely; the composite LSTM consistently undershoots.\relax }}{23}{figure.caption.20}\protected@file@percent }
+\newlabel{fig:position_sizing}{{11}{23}{Inverse-volatility position sizing backtest. Left: cumulative portfolio returns. Right: rolling 60-day annualised portfolio volatility against the target (dashed line). The NLL LSTM and GARCH track the target closely; the composite LSTM consistently undershoots.\relax }{figure.caption.20}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.13}Calibration scorecard}{23}{subsection.4.13}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Calibration scorecard: pass/fail at 5\% significance.\relax }}{23}{table.caption.21}\protected@file@percent }
+\newlabel{tab:scorecard}{{9}{23}{Calibration scorecard: pass/fail at 5\% significance.\relax }{table.caption.21}{}}
+\citation{hansen2005forecast}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{24}{section.5}\protected@file@percent }
+\newlabel{sec:discussion}{{5}{24}{Discussion}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Assessment of hypotheses}{24}{subsection.5.1}\protected@file@percent }
+\citation{hansen2005forecast}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Comparison with GARCH(1,1)}{25}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Implications for position sizing}{25}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Limitations}{25}{subsection.5.4}\protected@file@percent }
+\bibdata{references}
+\bibcite{gneiting2007strictly}{{1}{2007}{{Gneiting and Raftery}}{{}}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion and Future Work}{26}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{6}{26}{Conclusion and Future Work}{section.6}{}}
+\bibcite{lakshminarayanan2017simple}{{2}{2017}{{Lakshminarayanan et~al.}}{{Lakshminarayanan, Pritzel, and Blundell}}}
+\bibcite{kuleshov2018accurate}{{3}{2018}{{Kuleshov et~al.}}{{Kuleshov, Fenner, and Ermon}}}
+\bibcite{diebold1995comparing}{{4}{1995}{{Diebold and Mariano}}{{}}}
+\bibcite{christoffersen1998evaluating}{{5}{1998}{{Christoffersen}}{{}}}
+\bibcite{cont2001empirical}{{6}{2001}{{Cont}}{{}}}
+\bibcite{hochreiter1997long}{{7}{1997}{{Hochreiter and Schmidhuber}}{{}}}
+\bibcite{nix1994estimating}{{8}{1994}{{Nix and Weigend}}{{}}}
+\bibcite{engle1982autoregressive}{{9}{1982}{{Engle}}{{}}}
+\bibcite{bollerslev1986generalized}{{10}{1986}{{Bollerslev}}{{}}}
+\bibcite{diebold1998evaluating}{{11}{1998}{{Diebold et~al.}}{{Diebold, Gunther, and Tay}}}
+\bibcite{ljung1978measure}{{12}{1978}{{Ljung and Box}}{{}}}
+\bibcite{hansen2005forecast}{{13}{2005}{{Hansen and Lunde}}{{}}}
+\gdef \@abspage@last{27}
