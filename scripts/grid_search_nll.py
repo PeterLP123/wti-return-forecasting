@@ -1,7 +1,7 @@
 """
 Grid Search Script: XGBoost (MSE) + LSTM (NLL) + LSTM (NLL+Dir+Var)
 Saves results incrementally. Run from project root:
-    python grid_search_nll.py
+    python scripts/grid_search_nll.py
 """
 import time
 import json
@@ -30,15 +30,77 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def log(msg):
     print(msg, flush=True)
 
+
+def _normalise_scalar(value):
+    """Normalise scalar values so CSV-loaded params match in-memory grid params."""
+    if pd.isna(value):
+        return 'NaN'
+    if isinstance(value, (np.integer, int)):
+        return str(int(value))
+    if isinstance(value, (np.floating, float)):
+        if np.isfinite(value) and abs(float(value) - round(float(value))) < 1e-12:
+            return str(int(round(float(value))))
+        return format(float(value), '.12g')
+    try:
+        numeric = float(value)
+        if np.isfinite(numeric) and abs(numeric - round(numeric)) < 1e-12:
+            return str(int(round(numeric)))
+        return format(numeric, '.12g')
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _combo_key(params, keys):
+    """Create a stable tuple key for one hyperparameter combination."""
+    return tuple(_normalise_scalar(params[k]) for k in keys)
+
 log(f'Device: {device}')
 
 # ════════════════════════════════════════════════════════════════
 # 1. DATA SETUP
 # ════════════════════════════════════════════════════════════════
-PROJECT_DIR = Path(__file__).parent
+
+def find_project_root(start_path: Path) -> Path:
+    """Locate repo root from this file path."""
+    start_path = start_path.resolve()
+    for candidate in [start_path] + list(start_path.parents):
+        if (candidate / 'scripts' / 'grid_search_nll.py').exists() and (candidate / 'data' / 'processed').exists():
+            return candidate
+    raise FileNotFoundError(
+        'Could not locate project root containing scripts/grid_search_nll.py and data/processed/.'
+    )
+
+
+PROJECT_DIR = find_project_root(Path(__file__).resolve().parent)
 PROCESSED_DIR = PROJECT_DIR / 'data' / 'processed'
 RESULTS_DIR = PROJECT_DIR / 'results' / 'nll_grid'
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+LSTM_ARTIFACT_FILENAMES = {
+    'lstm_nll': {
+        'params': 'lstm_nll_best_params.json',
+        'model': 'lstm_nll_model.pth',
+        'curves': 'lstm_nll_training_curves.csv',
+    },
+    'lstm_nll_dir_var': {
+        'params': 'lstm_nll_dir_var_best_params.json',
+        'model': 'lstm_nll_dir_var_model.pth',
+        'curves': 'lstm_nll_dir_var_training_curves.csv',
+    },
+}
+
+
+def get_lstm_artifact_paths(save_prefix: str) -> dict:
+    """Return canonical artifact paths for probabilistic LSTM variants."""
+    filenames = LSTM_ARTIFACT_FILENAMES.get(
+        save_prefix,
+        {
+            'params': f'{save_prefix}_best_params.json',
+            'model': f'{save_prefix}_model.pth',
+            'curves': f'{save_prefix}_training_curves.csv',
+        },
+    )
+    return {k: RESULTS_DIR / v for k, v in filenames.items()}
 
 df = pd.read_parquet(PROCESSED_DIR / 'sanity_data_pca.parquet')
 df['Date'] = pd.to_datetime(df['Date'])
@@ -153,28 +215,44 @@ def train_lstm_fold(model, train_loader, val_loader, loss_fn, lr, patience=10):
     for epoch in range(EPOCHS):
         model.train()
         ep_loss = 0
+        non_finite_train = False
         for X_b, y_b in train_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             optimizer.zero_grad()
             mu, log_var = model(X_b)
             loss = loss_fn(mu, log_var, y_b)
+            if not torch.isfinite(loss):
+                non_finite_train = True
+                break
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             ep_loss += loss.item()
+        if non_finite_train:
+            log('  Warning: non-finite training loss encountered; stopping this fold early.')
+            break
         train_losses.append(ep_loss / len(train_loader))
 
         model.eval()
         vl = 0
+        non_finite_val = False
         with torch.no_grad():
             for X_b, y_b in val_loader:
                 X_b, y_b = X_b.to(device), y_b.to(device)
                 mu, log_var = model(X_b)
-                vl += pure_nll(mu, log_var, y_b).item()  # always validate on pure NLL
-        avg_vl = vl / len(val_loader)
+                batch_vl = pure_nll(mu, log_var, y_b).item()  # always validate on pure NLL
+                if not np.isfinite(batch_vl):
+                    non_finite_val = True
+                    break
+                vl += batch_vl
+        if non_finite_val:
+            avg_vl = float('inf')
+            log('  Warning: non-finite validation loss encountered; marking fold loss as inf.')
+        else:
+            avg_vl = vl / len(val_loader)
         val_losses.append(avg_vl)
 
-        if avg_vl < best_val:
+        if np.isfinite(avg_vl) and avg_vl < best_val:
             best_val = avg_vl
             best_state = deepcopy(model.state_dict())
             wait = 0
@@ -183,6 +261,10 @@ def train_lstm_fold(model, train_loader, val_loader, loss_fn, lr, patience=10):
             if wait >= patience:
                 break
 
+    if best_state is None:
+        log('  Warning: no finite validation checkpoint captured; using current model weights.')
+        best_state = deepcopy(model.state_dict())
+        best_val = float('inf')
     model.load_state_dict(best_state)
     return model, best_val, epoch + 1, train_losses, val_losses
 
@@ -231,10 +313,47 @@ def run_lstm_grid(loss_fn, loss_name, grid, save_prefix):
     t0 = time.time()
     best_so_far = float('inf')
     csv_path = RESULTS_DIR / f'{save_prefix}_grid_results.csv'
+    completed_keys = set()
+
+    if csv_path.exists():
+        try:
+            existing_df = pd.read_csv(csv_path)
+            if not existing_df.empty and all(k in existing_df.columns for k in keys):
+                existing_by_key = {}
+                for rec in existing_df.to_dict(orient='records'):
+                    key = _combo_key(rec, keys)
+                    prev = existing_by_key.get(key)
+                    if prev is None:
+                        existing_by_key[key] = rec
+                        continue
+                    prev_loss = float(prev.get('avg_cv_val_loss', float('inf')))
+                    curr_loss = float(rec.get('avg_cv_val_loss', float('inf')))
+                    if np.isfinite(curr_loss) and (not np.isfinite(prev_loss) or curr_loss < prev_loss):
+                        existing_by_key[key] = rec
+                results = list(existing_by_key.values())
+                completed_keys = set(existing_by_key.keys())
+                finite_losses = [
+                    float(r['avg_cv_val_loss'])
+                    for r in results
+                    if pd.notna(r.get('avg_cv_val_loss')) and np.isfinite(float(r.get('avg_cv_val_loss')))
+                ]
+                if finite_losses:
+                    best_so_far = min(finite_losses)
+                log(f'Resuming {loss_name}: loaded {len(results)} completed configs from {csv_path}')
+            else:
+                log(f'Found existing CSV at {csv_path}, but required columns are missing; starting fresh.')
+        except Exception as exc:
+            log(f'Warning: could not load existing results from {csv_path}: {exc}')
+
+    processed_this_run = 0
 
     try:
-        for i, combo in enumerate(combos):
+        for combo in combos:
             params = dict(zip(keys, combo))
+            key = _combo_key(params, keys)
+            if key in completed_keys:
+                continue
+
             sl = params['seq_len']
             X_all, y_all = create_sequences(train_X, train_y, sl)
             tscv = TimeSeriesSplit(n_splits=3)
@@ -258,7 +377,7 @@ def run_lstm_grid(loss_fn, loss_name, grid, save_prefix):
                 fold_epochs.append(ep)
 
             avg_loss = np.mean(fold_losses)
-            results.append({
+            rec = {
                 **params,
                 'avg_cv_val_loss': avg_loss,
                 'fold1_loss': fold_losses[0],
@@ -268,36 +387,41 @@ def run_lstm_grid(loss_fn, loss_name, grid, save_prefix):
                 'fold2_epochs': fold_epochs[1],
                 'fold3_epochs': fold_epochs[2],
                 'avg_epochs': np.mean(fold_epochs),
-            })
+            }
+            results.append(rec)
+            completed_keys.add(key)
+            processed_this_run += 1
 
-            is_best = avg_loss < best_so_far
+            is_best = np.isfinite(avg_loss) and avg_loss < best_so_far
             if is_best:
                 best_so_far = avg_loss
 
-            # Save incrementally every 50 configs
-            if (i + 1) % 50 == 0 or (i + 1) == len(combos):
+            done_total = len(completed_keys)
+            # Save incrementally every 50 new configs
+            if (processed_this_run % 50 == 0 and processed_this_run > 0) or done_total == len(combos):
                 pd.DataFrame(results).sort_values('avg_cv_val_loss').to_csv(csv_path, index=False)
 
-            if (i + 1) % 25 == 0 or (i + 1) == len(combos) or is_best:
+            if (processed_this_run % 25 == 0 and processed_this_run > 0) or done_total == len(combos) or is_best:
                 elapsed = time.time() - t0
-                rate = (i + 1) / elapsed
-                eta = (len(combos) - i - 1) / rate if rate > 0 else 0
+                rate = processed_this_run / elapsed if elapsed > 0 else 0
+                eta = (len(combos) - done_total) / rate if rate > 0 else 0
                 marker = ' *** NEW BEST ***' if is_best else ''
-                log(f'  [{i+1:5d}/{len(combos)}] loss={avg_loss:.6f} '
+                log(f'  [{done_total:5d}/{len(combos)}] loss={avg_loss:.6f} '
                     f'ep={np.mean(fold_epochs):.0f} | '
                     f'{elapsed/60:.1f}m elapsed, ETA {eta/60:.1f}m ({eta/3600:.1f}h){marker}')
 
     except KeyboardInterrupt:
-        log(f'\n*** Interrupted after {len(results)}/{len(combos)} configs ***')
+        log(f'\n*** Interrupted after {len(completed_keys)}/{len(combos)} configs ***')
 
     finally:
+        results_df = pd.DataFrame(results)
         if results:
-            results_df = pd.DataFrame(results).sort_values('avg_cv_val_loss').reset_index(drop=True)
+            results_df = results_df.sort_values('avg_cv_val_loss').reset_index(drop=True)
             results_df.to_csv(csv_path, index=False)
             log(f'\nSaved {len(results)} results to {csv_path}')
 
     elapsed_total = time.time() - t0
-    log(f'{loss_name} complete. {len(results)} configs in {elapsed_total/60:.1f}m ({elapsed_total/3600:.1f}h)')
+    log(f'{loss_name} complete. {len(completed_keys)} configs in {elapsed_total/60:.1f}m ({elapsed_total/3600:.1f}h)')
     log(f'\nTop 5:')
     log(results_df.head().to_string(index=False))
     return results_df
@@ -320,10 +444,47 @@ def run_xgb_grid(grid, save_prefix):
     t0 = time.time()
     best_so_far = float('inf')
     csv_path = RESULTS_DIR / f'{save_prefix}_grid_results.csv'
+    completed_keys = set()
+
+    if csv_path.exists():
+        try:
+            existing_df = pd.read_csv(csv_path)
+            if not existing_df.empty and all(k in existing_df.columns for k in keys):
+                existing_by_key = {}
+                for rec in existing_df.to_dict(orient='records'):
+                    key = _combo_key(rec, keys)
+                    prev = existing_by_key.get(key)
+                    if prev is None:
+                        existing_by_key[key] = rec
+                        continue
+                    prev_loss = float(prev.get('avg_cv_val_loss', float('inf')))
+                    curr_loss = float(rec.get('avg_cv_val_loss', float('inf')))
+                    if np.isfinite(curr_loss) and (not np.isfinite(prev_loss) or curr_loss < prev_loss):
+                        existing_by_key[key] = rec
+                results = list(existing_by_key.values())
+                completed_keys = set(existing_by_key.keys())
+                finite_losses = [
+                    float(r['avg_cv_val_loss'])
+                    for r in results
+                    if pd.notna(r.get('avg_cv_val_loss')) and np.isfinite(float(r.get('avg_cv_val_loss')))
+                ]
+                if finite_losses:
+                    best_so_far = min(finite_losses)
+                log(f'Resuming XGBoost: loaded {len(results)} completed configs from {csv_path}')
+            else:
+                log(f'Found existing CSV at {csv_path}, but required columns are missing; starting fresh.')
+        except Exception as exc:
+            log(f'Warning: could not load existing results from {csv_path}: {exc}')
+
+    processed_this_run = 0
 
     try:
-        for i, combo in enumerate(combos):
+        for combo in combos:
             params = dict(zip(keys, combo))
+            key = _combo_key(params, keys)
+            if key in completed_keys:
+                continue
+
             tscv = TimeSeriesSplit(n_splits=3)
             fold_losses = []
 
@@ -343,41 +504,46 @@ def run_xgb_grid(grid, save_prefix):
                 fold_losses.append(mean_squared_error(train_y[vl_idx], preds))
 
             avg_loss = np.mean(fold_losses)
-            results.append({
+            rec = {
                 **params,
                 'avg_cv_val_loss': avg_loss,
                 'fold1_loss': fold_losses[0],
                 'fold2_loss': fold_losses[1],
                 'fold3_loss': fold_losses[2],
-            })
+            }
+            results.append(rec)
+            completed_keys.add(key)
+            processed_this_run += 1
 
-            is_best = avg_loss < best_so_far
+            is_best = np.isfinite(avg_loss) and avg_loss < best_so_far
             if is_best:
                 best_so_far = avg_loss
 
-            # Save incrementally every 100 configs
-            if (i + 1) % 100 == 0 or (i + 1) == len(combos):
+            done_total = len(completed_keys)
+            # Save incrementally every 100 new configs
+            if (processed_this_run % 100 == 0 and processed_this_run > 0) or done_total == len(combos):
                 pd.DataFrame(results).sort_values('avg_cv_val_loss').to_csv(csv_path, index=False)
 
-            if (i + 1) % 100 == 0 or (i + 1) == len(combos) or is_best:
+            if (processed_this_run % 100 == 0 and processed_this_run > 0) or done_total == len(combos) or is_best:
                 elapsed = time.time() - t0
-                rate = (i + 1) / elapsed
-                eta = (len(combos) - i - 1) / rate if rate > 0 else 0
+                rate = processed_this_run / elapsed if elapsed > 0 else 0
+                eta = (len(combos) - done_total) / rate if rate > 0 else 0
                 marker = ' *** NEW BEST ***' if is_best else ''
-                log(f'  [{i+1:5d}/{len(combos)}] loss={avg_loss:.6f} | '
+                log(f'  [{done_total:5d}/{len(combos)}] loss={avg_loss:.6f} | '
                     f'{elapsed/60:.1f}m elapsed, ETA {eta/60:.1f}m ({eta/3600:.1f}h){marker}')
 
     except KeyboardInterrupt:
-        log(f'\n*** Interrupted after {len(results)}/{len(combos)} configs ***')
+        log(f'\n*** Interrupted after {len(completed_keys)}/{len(combos)} configs ***')
 
     finally:
+        results_df = pd.DataFrame(results)
         if results:
-            results_df = pd.DataFrame(results).sort_values('avg_cv_val_loss').reset_index(drop=True)
+            results_df = results_df.sort_values('avg_cv_val_loss').reset_index(drop=True)
             results_df.to_csv(csv_path, index=False)
             log(f'\nSaved {len(results)} results to {csv_path}')
 
     elapsed_total = time.time() - t0
-    log(f'XGBoost complete. {len(results)} configs in {elapsed_total/60:.1f}m ({elapsed_total/3600:.1f}h)')
+    log(f'XGBoost complete. {len(completed_keys)} configs in {elapsed_total/60:.1f}m ({elapsed_total/3600:.1f}h)')
     log(f'\nTop 5:')
     log(results_df.head().to_string(index=False))
     return results_df
@@ -472,10 +638,12 @@ def train_final_lstm(results_df, loss_fn, loss_name, save_prefix):
     )
     log(f'  Trained {ep} epochs')
 
+    artifact_paths = get_lstm_artifact_paths(save_prefix)
+
     # Save training curves
     curves = pd.DataFrame({'epoch': range(1, len(train_losses)+1),
                            'train_loss': train_losses, 'val_loss': val_losses})
-    curves.to_csv(RESULTS_DIR / f'{save_prefix}_training_curves.csv', index=False)
+    curves.to_csv(artifact_paths['curves'], index=False)
 
     # Test evaluation
     test_metrics = evaluate_lstm(model, te_loader, scaler_y)
@@ -489,11 +657,14 @@ def train_final_lstm(results_df, loss_fn, loss_name, save_prefix):
         'dropout': dropout, 'learning_rate': lr, 'loss': loss_name,
         'epochs_trained': ep,
     }
-    with open(RESULTS_DIR / f'{save_prefix}_best_params.json', 'w') as f:
+    with open(artifact_paths['params'], 'w') as f:
         json.dump(best_params, f, indent=2)
 
     # Save model
-    torch.save(model.state_dict(), RESULTS_DIR / f'{save_prefix}_model.pth')
+    torch.save(model.state_dict(), artifact_paths['model'])
+    log(f'  Saved checkpoint: {artifact_paths["model"]}')
+    log(f'  Saved params: {artifact_paths["params"]}')
+    log(f'  Saved curves: {artifact_paths["curves"]}')
 
     return test_metrics, best_params
 
