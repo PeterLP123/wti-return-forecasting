@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this project, please cite it using the metadata below."
+title: "Probabilistic WTI Return Forecasting"
+type: software
+authors:
+  - family-names: Prendergast
+    given-names: Peter
+repository-code: "https://github.com/PeterLP123/wti-return-forecasting"
+url: "https://github.com/PeterLP123/wti-return-forecasting"
+date-released: 2026-07-22
+abstract: >-
+  A calibration study of probabilistic LSTM forecasts for next-day WTI crude-oil
+  returns, compared with classical and machine-learning benchmarks.
