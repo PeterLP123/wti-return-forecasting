@@ -3,6 +3,7 @@
  aps,
  pra,
  floatfix,
+ raggedbottom,
  nofootinbib,
 12pt,]{revtex4-2}
 \usepackage{amsmath}
@@ -10,69 +11,56 @@
 \usepackage{dcolumn}
 \usepackage{bm}
 \usepackage{mathtools}
+\usepackage{placeins}
 \providecommand{\texorpdfstring}[2]{#1}
 \usepackage[mathlines]{lineno}
 
 \begin{document}
 \preprint{APS/123-QED}
 \title{\texorpdfstring{Are LSTM Uncertainty Estimates Calibrated?\\A Post-Hoc Diagnostic Study of Probabilistic WTI Crude Oil Forecasts}{Are LSTM Uncertainty Estimates Calibrated? A Post-Hoc Diagnostic Study of Probabilistic WTI Crude Oil Forecasts}}
-\author{Peter Prendergast, SN: 25217979, COMP0047}
+\author{Peter Prendergast}
 \noaffiliation
 \maketitle
 \begin{center}
     \textbf{ABSTRACT}
 \end{center}
 \begin{quote}
-Our earlier analysis suggested that the LSTM's learned $\sigma_t$ is ``calibrated and regime-aware,'' but that interpretation was not tested with formal statistical evidence.
-This study applies a battery of goodness-of-fit tests to the standardised residuals of two LSTM variants and a GARCH(1,1) benchmark, finding that the pure-NLL LSTM produces partially calibrated uncertainty estimates while the composite decision-aware loss materially distorts $\sigma_t$.
-A Diebold--Mariano test confirms that the NLL LSTM significantly outperforms the composite model ($p < 0.001$) but does not significantly outperform GARCH ($p = 0.67$), and a Student-$t$ extension consistently improves calibration for all models.
+Our earlier analysis suggested that the LSTM's learned $\sigma_t$ was ``calibrated and regime-aware,'' but that claim was not tested formally. This report studies the standardised residuals of two LSTM variants and a GARCH(1,1) benchmark using goodness-of-fit, dependence, and coverage diagnostics. The results suggest that the pure NLL LSTM is only partly calibrated, the composite-loss model distorts $\sigma_t$, and a Student-$t$ residual law improves fit for all three models.
 \end{quote}
 
-{\setcounter{tocdepth}{2}\small\tableofcontents\par}
-\newpage
+\thispagestyle{empty}
+{\makeatletter
+\pagestyle{empty}
+\let\l@subsection\@gobbletwo
+\let\l@subsubsection\@gobbletwo
+\let\l@paragraph\@gobbletwo
+\tableofcontents
+\makeatother}
+\clearpage
+\setcounter{page}{0}
+\pagestyle{plain}
 
 %% =========================================================================
 \section{Introduction}
 \label{sec:intro}
 %% =========================================================================
 
-Forecasting next-day returns in commodity markets is a task characterised by extremely low signal-to-noise ratios.
-When models are trained under standard loss functions such as mean squared error or Gaussian negative log-likelihood (NLL), the optimal prediction is typically close to zero, the unconditional mean of the return distribution.
-This phenomenon, referred to in the earlier analysis as the ``flat-line problem,'' is not a failure of modelling but a consequence of the signal structure: the conditional mean of daily log returns is very close to zero, and any aggressive departure risks large quadratic penalties.
+Forecasting next-day returns in commodity markets is difficult because the signal-to-noise ratio is extremely low. When models are trained under standard loss functions such as MSE or Gaussian negative log likelihood (NLL), the optimal prediction is typically close to zero. In our group work, this was referred to as the ``flat-line problem.'' It is not necessarily a failure of modelling, but a consequence of the structure of the signal. The conditional mean of daily log returns is very close to zero, so aggressive departures are penalised heavily.
 
-To address this problem, the earlier analysis introduced a composite three-component loss function that combines Gaussian NLL with a directional penalty and a variance-collapse penalty.
-Under this composite loss, the LSTM produced non-trivial directional predictions (52.3\% accuracy versus 47.1\% under pure NLL) and a ten-fold increase in prediction spread.
-That earlier analysis also interpreted the LSTM's learned $\sigma_t$ as ``calibrated and regime-aware,'' based on two pieces of informal evidence: the unconditional average of $\sigma_t$ ($\approx 0.025$) is close to the empirical return standard deviation ($\approx 0.023$), and the uncertainty bands visually widen during volatile periods.
+To address this problem, our project introduced a composite three-component loss function that combines Gaussian NLL with a directional penalty and a variance-collapse penalty. Under this composite loss, the LSTM produced non-trivial directional predictions (52.3\% accuracy versus 47.1\% under pure NLL) and a tenfold increase in prediction spread. We also interpreted the learned $\sigma_t$ as ``calibrated and regime-aware,'' based on two pieces of informal evidence: the unconditional average of $\sigma_t$ ($\approx 0.025$) is close to the empirical return standard deviation ($\approx 0.023$), and the uncertainty bands visibly widen during volatile periods.
 
-Neither of these observations constitutes a formal calibration test.
-Matching unconditional moments is a necessary but not sufficient condition for probabilistic calibration; visual band-widening is not quantitative.
-Moreover, the composite loss is explicitly not a proper scoring rule in the sense of \citet{gneiting2007strictly}.
-To see why, note that a scoring rule $S(F, r)$ is \emph{proper} if its expectation is minimised when the forecaster reports the true predictive distribution $G$: $\mathbb{E}_{r \sim G}[S(G, r)] \leq \mathbb{E}_{r \sim G}[S(F, r)]$ for all $F$.
-The Gaussian NLL satisfies this property because it is the logarithmic score for the Gaussian family.
-But the composite loss adds terms --- $\mathcal{L}_{\text{dir}}$ and $\mathcal{L}_{\text{var}}$ - that depend on $\mu_t$ through non-probabilistic objectives.
-The expectation of these terms under the true distribution is not minimised at $F = G$, so the composite loss cannot be proper: the model is incentivised to report a distribution different from its best estimate of the truth, and $\sigma_t$ absorbs the resulting distortion.
+However, we did not complete a formal calibration test. Matching unconditional moments is a necessary but not sufficient condition for probabilistic calibration. The composite loss is also not a proper scoring rule in the sense of \citet{gneiting2007strictly}. The Gaussian NLL is proper because it is the logarithmic score for the Gaussian family. But the composite loss adds terms $\mathcal{L}_{\text{dir}}$ and $\mathcal{L}_{\text{var}}$ that depend on $\mu_t$ through non-probabilistic objectives. Their expectation under the true distribution is not minimised at $F = G$, so the model is no longer trained purely to report the true predictive distribution. As a result, $\sigma_t$ may absorb part of that distortion.
 
-Calibration of neural network uncertainty estimates is a known challenge in the broader deep learning literature \citep{lakshminarayanan2017simple,kuleshov2018accurate}, and the specific question of whether heteroscedastic regression networks produce calibrated variance estimates has received less attention in the financial forecasting context.
-It is also natural to consider using $\sigma_t$ for position sizing in a simulated trading strategy.
-Before $\sigma_t$ can be trusted for downstream risk management, its calibration must be established - or its miscalibration must be understood.
+Calibration of neural network uncertainty estimates is a known challenge in the broader deep learning literature \citep{kuleshov2018accurate}, and the question of whether heteroscedastic regression networks produce calibrated variance estimates has received less attention in the financial forecasting context. It is also natural to consider using $\sigma_t$ for position sizing in a simulated trading strategy. Before $\sigma_t$ can be trusted for use in risk management, we must establish whether it is calibrated.
 
-This report addresses this gap by conducting a focused post-hoc calibration study of the models developed in the earlier analysis.
-The central research question is:
+This report addresses that gap through a focused calibration study of the models developed in the earlier analysis. The central research question is whether the uncertainty estimates produced by our LSTM models are statistically calibrated and how they compare with a classical GARCH benchmark.
 
-\begin{quote}
-\emph{Are the uncertainty estimates produced by our LSTM models statistically calibrated, and how do they compare with a classical GARCH benchmark?}
-\end{quote}
-
-Three hypotheses guide the analysis:
+The analysis is organised around three hypotheses:
 \begin{enumerate}
-    \item the pure-NLL LSTM should be better calibrated than the composite decision-aware model because NLL is a proper scoring rule;
+    \item the pure NLL LSTM should be better calibrated than the composite decision-aware model because NLL is a proper scoring rule;
     \item both models are likely to exhibit heavy-tailed residuals relative to the Gaussian assumption, so a Student-$t$ predictive law should improve fit;
     \item the LSTM's volatility estimates may not outperform a GARCH(1,1) benchmark once evaluated using formal density-forecast diagnostics.
 \end{enumerate}
-
-The contribution is not to propose a new forecasting model, but to extend the earlier analysis using established tools from forecast evaluation and volatility modelling.
-By doing so, the report complements the earlier emphasis on directional prediction and demonstrates why uncertainty calibration must be judged by proper statistical tests rather than visual plausibility alone.
-
 %% =========================================================================
 \section{Data Analysis}
 \label{sec:data}
@@ -80,7 +68,7 @@ By doing so, the report complements the earlier emphasis on directional predicti
 
 \subsection{Dataset and target variable}
 
-The analysis uses the dataset prepared for the earlier study: daily observations for the \textbf{WTI crude oil front-month futures contract} from January 2010 to December 2024.
+The analysis uses the dataset prepared for the earlier study: daily observations for the WTI crude oil futures contract from January 2017 to March 2026.
 The target variable is the one-day-ahead log return,
 \begin{equation}
     r_t = \log P_t - \log P_{t-1},
@@ -91,32 +79,12 @@ Because the predictive mean of $r_t$ is economically small, the main object of i
 
 \subsection{Train/validation/test split}
 
-To preserve temporal ordering and avoid look-ahead bias, the study uses a walk-forward split:
-\begin{itemize}
-    \item training: January 2010 -- December 2022;
-    \item validation: January 2023 -- December 2023;
-    \item test: January 2024 -- December 2024.
-\end{itemize}
-
-\begin{table}[htbp]
-\centering
-\caption{Walk-forward data split.}
-\label{tab:split}
-\begin{ruledtabular}
-\begin{tabular}{lccc}
-\textbf{Split} & \textbf{Period} & \textbf{Purpose} & \textbf{Approx. size} \\
-\hline
-Training   & 2010--2022 & Fit model parameters        & $\sim 3270$ daily obs. \\
-Validation & 2023       & Hyperparameter tuning       & $\sim 252$ daily obs. \\
-Test       & 2024       & Final out-of-sample audit   & $348$ daily obs. \\
-\end{tabular}
-\end{ruledtabular}
-\end{table}
+To preserve temporal ordering and avoid look-ahead bias, I use a walk-forward split: the training set runs from 31 Jan 2017 to 30 Dec 2022 (1,235 observations), the validation set from 3 Jan 2023 to 28 Jun 2024 (312 observations), and the test set from 1 Jul 2024 to 3 Mar 2026 (348 observations).
 
 \subsection{Test-set return distribution}
 
 Before assessing model calibration, it is useful to characterise the return distribution itself.
-The 2024 test period exhibits the standard stylised facts of financial returns: near-zero mean, volatility clustering, slight skewness, and excess kurtosis \citep{cont2001empirical}.
+The test period exhibits the standard stylised facts of financial returns: near-zero mean, volatility clustering, slight skewness, and excess kurtosis \citep{cont2001empirical}.
 Table~\ref{tab:test_stats} summarises the basic distributional moments.
 The high kurtosis implies heavier tails than a Gaussian benchmark would predict, suggesting that a normal predictive density may be misspecified even for a well-calibrated conditional volatility model.
 
@@ -125,19 +93,17 @@ The high kurtosis implies heavier tails than a Gaussian benchmark would predict,
 \caption{Summary statistics for test-set returns ($n = 348$).}
 \label{tab:test_stats}
 \begin{ruledtabular}
-\begin{tabular}{lcccc}
-\textbf{Mean} & \textbf{Std. dev.} & \textbf{Skewness} & \textbf{Excess kurtosis} & \textbf{JB $p$-value} \\
+\begin{tabular}{cccc}
+\textbf{Mean} & \textbf{Std. dev.} & \textbf{Skewness} & \textbf{Excess kurtosis} \\
 \hline
-$0.0001$ & $0.0232$ & $-0.28$ & $4.86$ & $< 0.001$ \\
+$0.0001$ & $0.0232$ & $-0.28$ & $4.86$ \\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
 
-The substantial excess kurtosis is the first empirical sign that any Gaussian uncertainty estimate may systematically underestimate tail risk.
+\subsection{Models}
 
-\subsection{Models under study}
-
-The report evaluates the two LSTM variants developed in the earlier analysis:
+The report evaluates the two LSTM variants developed in the group work:
 \begin{enumerate}
     \item \textbf{Pure-NLL LSTM.}
     This model outputs $(\mu_t, \sigma_t)$ and is trained by minimising the Gaussian negative log-likelihood,
@@ -157,9 +123,9 @@ The report evaluates the two LSTM variants developed in the earlier analysis:
     This objective aims to improve trading usefulness, but it sacrifices the strict probabilistic interpretation of $\sigma_t$.
 \end{enumerate}
 
-In addition, a \textbf{GARCH(1,1)} model is fit to the training returns as a classical volatility benchmark.
-GARCH is the standard tool for modelling conditional heteroscedasticity in financial returns, building on Engle's original ARCH framework \citep{engle1982autoregressive,bollerslev1986generalized}, and provides a natural reference point.
-The earlier modelling setup also connects the LSTM's heteroscedastic output to GARCH-style volatility modelling, making this comparison directly relevant.
+In addition, a GARCH(1,1) model is fitted to the training returns as a classical volatility benchmark.
+GARCH is the standard tool for modelling conditional heteroscedasticity in financial returns and provides a natural reference point \citep{engle1982,bollerslev1986generalized}.
+The earlier modelling setup also connects the LSTM's heteroscedastic output to GARCH-style volatility modelling, which makes this comparison especially relevant.
 
 Figure~\ref{fig:eda} presents the test-set return distribution alongside fitted Gaussian and Student-$t$ density overlays, a Q-Q plot, a P-P plot, and the rolling 60-day realised volatility.
 The Q-Q plot reveals clear tail departures from the Gaussian model, particularly in the left tail.
@@ -183,7 +149,7 @@ The rolling volatility panel shows distinct volatility regimes during the test p
 
 \subsection{Probabilistic calibration}
 
-A probabilistic forecaster that outputs $(\mu_t, \sigma_t)$ is \emph{calibrated} if, for every nominal coverage level $\alpha \in (0,1)$, the empirical fraction of observations falling within the $\alpha$-prediction interval equals $\alpha$:
+A probabilistic forecaster that outputs $(\mu_t, \sigma_t)$ is calibrated if for every nominal coverage level $\alpha \in (0,1)$, the empirical fraction of observations falling within the $\alpha$-prediction interval equals $\alpha$:
 \begin{equation}
     \frac{1}{n}\sum_{t=1}^{n} \mathbf{1}\!\left[r_t \in \left(\mu_t - q_{\alpha}\,\sigma_t,\;\mu_t + q_{\alpha}\,\sigma_t\right)\right] \approx \alpha,
     \label{eq:coverage}
@@ -197,21 +163,19 @@ If the predictive distribution $F_t(r) = \Phi\!\left((r - \mu_t)/\sigma_t\right)
     \label{eq:pit}
 \end{equation}
 should be i.i.d. Uniform$(0,1)$ \citep{diebold1998evaluating}.
-Thus, calibration can be assessed through several complementary diagnostics:
-\begin{itemize}
-    \item \textbf{distributional fit}: are the standardised residuals $z_t = (r_t-\mu_t)/\sigma_t$ approximately mean-zero and variance-one under the assumed law?
-    \item \textbf{independence}: are $z_t$ and $|z_t|$ free from serial dependence?
-    \item \textbf{coverage}: do nominal prediction intervals attain their target frequencies?
-    \item \textbf{PIT uniformity}: are PIT values close to uniform, without U-shapes or inverse-U patterns?
-\end{itemize}
+Thus, calibration can be assessed through four diagnostics: \textbf{distributional fit}
+(mean-zero, unit-variance standardised residuals), \textbf{independence}
+(no serial dependence in $z_t$ or $|z_t|$), \textbf{coverage}
+(nominal prediction intervals attain their target frequencies), and
+\textbf{PIT uniformity} (PIT values are close to uniform, without U-shapes or inverse-U
+patterns).
 
 No single test is decisive in isolation.
-A model may pass moment matching while failing tail calibration, or achieve correct unconditional coverage while remaining conditionally miscalibrated during volatile regimes.
-For that reason, the report uses a battery of diagnostics rather than one summary metric.
+For that reason, this report uses a suite of diagnostics rather than a single summary metric.
 
 \subsection{Statistical tests}
 
-The core analysis is based on the standardised residuals
+The core analysis is based on the standardised residuals:
 \begin{equation}
     z_t = \frac{r_t - \mu_t}{\sigma_t}.
     \label{eq:z}
@@ -219,21 +183,21 @@ The core analysis is based on the standardised residuals
 If the Gaussian predictive distribution is well calibrated, then ideally $z_t \overset{i.i.d.}{\sim} \mathcal{N}(0,1)$.
 Four classes of tests are applied.
 
-\paragraph{1. Moment and shape diagnostics.}
+\paragraph{Moment and shape diagnostics.}
 Sample mean, standard deviation, skewness, and excess kurtosis provide a first-pass assessment.
 For a calibrated Gaussian density, these should be close to $(0,1,0,0)$.
-Large deviations immediately indicate bias, under-/over-dispersion, or misspecified tails.
+Large deviations immediately indicate bias, under/over dispersion or misspecified tails.
 
-\paragraph{2. Independence diagnostics.}
+\paragraph{Independence diagnostics.}
 Autocorrelation functions of $z_t$ and $|z_t|$ are examined visually, and the Ljung--Box test is applied at lag 10 \citep{ljung1978measure}.
 Serial correlation in $z_t$ implies mean misspecification; serial correlation in $|z_t|$ implies unmodelled volatility persistence.
 Either failure indicates that the predictive density has not captured the time-series structure of returns.
 
-\paragraph{3. Distributional goodness-of-fit.}
-The Kolmogorov--Smirnov (KS) test compares the empirical CDF of $z_t$ with the standard normal CDF \citep{kolmogorov1933sulla}, while the Anderson--Darling (AD) test emphasises tail discrepancies \citep{anderson1952asymptotic}.
+\paragraph{Distributional goodness-of-fit.}
+The KS test compares the empirical CDF of $z_t$ with the standard normal CDF, while the Anderson--Darling (AD) test emphasises tail discrepancies \citep{anderson1952asymptotic}.
 These tests complement moment diagnostics by formalising whether the entire shape of the predictive law is plausible.
 
-\paragraph{4. Interval and PIT diagnostics.}
+\paragraph{Interval and PIT diagnostics.}
 For nominal levels from 50\% to 99\%, the empirical coverage of Gaussian prediction intervals is compared with the target coverage.
 The PIT histogram is also examined: a U-shape indicates under-dispersion, an inverse-U indicates over-dispersion, and skewness indicates location bias \citep{diebold1998evaluating}.
 
@@ -246,21 +210,21 @@ To benchmark the LSTM's uncertainty estimates against a classical volatility mod
     \label{eq:garch}
 \end{align}
 where $h_t$ is the conditional variance.
-The benchmark is intentionally simple: it uses no exogenous features and a zero conditional mean, but it is designed specifically to model volatility clustering.
-If the deep model's $\sigma_t$ cannot outperform GARCH on calibration grounds, then its additional complexity has little value for probabilistic forecasting.
+The benchmark is intentionally simple: it uses no exogenous features and assumes a zero conditional mean, but it is designed specifically to model volatility clustering.
+If the deep model's $\sigma_t$ cannot outperform GARCH on calibration grounds, its additional complexity adds little value for probabilistic forecasting.
 
-Out-of-sample forecasts for the test period are produced by recursively applying Equation~\eqref{eq:garch}, bridging through the validation period to preserve the volatility state.
+Out-of-sample forecasts for the test period are produced by recursively applying Equation~\eqref{eq:garch} and using the validation period as a bridge to preserve the volatility state.
 
 \subsection{Conditional calibration}
 
 Unconditional calibration tests may mask regime-dependent miscalibration.
 If a model is overconfident during volatile periods and overdispersed during calm periods, the aggregate statistics may average to acceptable values.
-To detect such behaviour, the test set is split into high-volatility and low-volatility subsets using the median of the rolling 60-day realised volatility as the threshold, following the conditional calibration framework of \citet{kuleshov2018accurate}.
-The calibration battery is then applied separately to each subset.
+To detect such behaviour, the test set is split into high-volatility and low-volatility subsets using the median of the rolling 60-day realised volatility as the threshold. This method was motivated by \citet{kuleshov2018accurate}.
+The calibration tests are then applied separately to each subset.
 
-\subsection{\texorpdfstring{Student-$t$ extension (Chapter 14)}{Student-t extension (Chapter 14)}}
+\subsection{\texorpdfstring{Student-$t$ extension}{Student-t extension}}
 
-After documenting Gaussian miscalibration, the analysis relaxes the distributional assumption.
+After documenting Gaussian miscalibration, I relaxed the distributional assumption. This follows \citet{bollerslev1987}, who introduced the Student-$t$ GARCH specification for financial returns.
 For each model's standardised residuals $z_t$, the degrees-of-freedom parameter $\hat{\nu}$ is estimated by maximum likelihood, maximising
 \begin{equation}
     \ell(\nu) = \sum_{t=1}^{n}\log f_{\nu}(z_t),
@@ -273,19 +237,22 @@ If the heavy tails of returns are the main source of Gaussian miscalibration, th
 \subsection{Limitations}
 
 Several limitations should be noted.
-First, only one test year is available for evaluation, so tail-focused tests have modest power.
+Because only 348 test observations are available for evaluation, tail-focused tests have modest power.
 Second, the report treats the LSTM forecasts as fixed and does not retrain or re-specify the underlying models.
 Third, calibration is examined for one-step-ahead daily returns only; intraday or multi-horizon forecasts may behave differently.
-Finally, because the composite specification was optimised partly for directional utility rather than purely for density accuracy, poor calibration of the composite model is not necessarily a modelling mistake --- but it does mean that its $\sigma_t$ should not be read as a well-calibrated probabilistic uncertainty estimate.
+Finally, because the composite specification was optimised partly for directional utility rather than purely for density accuracy, poor calibration of the composite model is not necessarily a modelling mistake, but it does mean that its $\sigma_t$ should not be read as a well-calibrated probabilistic uncertainty estimate.
 
-%% =========================================================================
+
 \section{Results}
 \label{sec:results}
+
+The results are presented in four stages. I first examine the shape and dependence of the standardised residuals, then the main Gaussian calibration diagnostics, followed by out-of-sample likelihood comparisons and, finally, post-hoc and conditional checks.
+
+%% =========================================================================
+\subsection{Residual diagnostics}
 %% =========================================================================
 
-\subsection{Standardised residual diagnostics}
-
-Table~\ref{tab:zstats} presents the sample moments of the standardised residuals under the Gaussian predictive law.
+Table~\ref{tab:zstats} and Figure~\ref{fig:zseries} summarise the main properties of the standardised residuals under the Gaussian predictive law.
 
 \begin{table}[htbp]
 \centering
@@ -302,28 +269,21 @@ GARCH(1,1)     & $-0.05$ & $1.02$ & $-0.27$ & $1.74$ \\
 \end{ruledtabular}
 \end{table}
 
-The NLL model is closest to the Gaussian calibration ideal, with residual variance only slightly above one.
-By contrast, the composite model has $\mathrm{sd}(z_t)=0.83$, which implies \emph{over-dispersed} predictive intervals: the model's $\sigma_t$ is systematically too large relative to realised errors.
-Both LSTM models retain excess kurtosis, signalling residual tail misspecification.
-GARCH is similar to the NLL model in scale calibration and slightly better in tail behaviour.
-
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/figure2_standardised_residuals.pdf}
-    \caption{Standardised residuals and predicted volatility for the NLL LSTM (top row) and composite LSTM (bottom row).
-    Volatility spikes are tracked, but the composite model visibly inflates $\sigma_t$ in tranquil periods.}
+    \caption{Standardised residuals and predicted volatility for the NLL LSTM (top row) and composite LSTM (bottom row). Both models track volatility regimes, but the composite model visibly inflates $\sigma_t$ in tranquil periods.}
     \label{fig:zseries}
 \end{figure}
 
-\subsection{Autocorrelation diagnostics}
+GARCH is closest to the Gaussian calibration ideal on the moment diagnostics. The NLL LSTM is broadly similar but shows slightly larger dispersion and tail deviations, while the composite model has $\mathrm{sd}(z_t)=0.83$, indicating that its predictive intervals are too wide on average. All three models retain positive excess kurtosis, so some tail misspecification remains under the Gaussian law.
 
 Figure~\ref{fig:acf} and Table~\ref{tab:lb} assess remaining serial dependence.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/figure3_acf_grid.pdf}
-    \caption{Autocorrelation functions of $z_t$ (left column) and $|z_t|$ (right column) for the NLL LSTM (top) and composite LSTM (bottom).
-    Residual autocorrelation is negligible, but the composite model leaves more persistence in $|z_t|$.}
+    \caption{Autocorrelation functions of $z_t$ (left column) and $|z_t|$ (right column) for the NLL LSTM (top) and composite LSTM (bottom). Residual autocorrelation is negligible, but the composite model leaves more persistence in $|z_t|$.}
     \label{fig:acf}
 \end{figure}
 
@@ -343,11 +303,7 @@ GARCH(1,1)     & $10.37$ & $0.41$ & $12.02$ & $0.28$ \\
 \end{ruledtabular}
 \end{table}
 
-The NLL model passes the independence diagnostics comfortably.
-The composite model does not exhibit significant autocorrelation in $z_t$, but it does show significant autocorrelation in $|z_t|$ at the 5\% level, indicating that its uncertainty estimates fail to absorb all volatility clustering.
-This is consistent with the idea that the decision-aware penalties interfere with the volatility-learning role of the Gaussian NLL.
-
-\subsection{Formal distributional tests}
+The NLL LSTM passes the dependence diagnostics comfortably. The composite model shows no significant autocorrelation in $z_t$, but significant autocorrelation in $|z_t|$, indicating that its volatility estimates do not fully absorb volatility clustering.
 
 Table~\ref{tab:gof} reports the formal Gaussian goodness-of-fit tests.
 
@@ -366,39 +322,29 @@ GARCH(1,1)     & $0.049$ & $0.39$  & $0.68$ & Pass / borderline \\
 \end{ruledtabular}
 \end{table}
 
-These results confirm the visual impression from the residual plots.
-The pure-NLL model is reasonably close to Gaussian calibration and would not be rejected by a KS test, though the AD statistic suggests mild tail problems.
-The composite model is decisively miscalibrated under the Gaussian law.
-GARCH performs comparably to the NLL LSTM and slightly better in the tails.
+The NLL model is reasonably close to Gaussian calibration and is not rejected by the KS test, although the AD statistic still points to mild tail misspecification. The composite model is decisively miscalibrated. GARCH performs comparably to the NLL LSTM and slightly better in the tails.
 
-\subsection{PIT histograms}
+\FloatBarrier
 
-PIT histograms provide an alternative view of calibration that is often more interpretable than a single test statistic.
+%% =========================================================================
+\subsection{Gaussian calibration diagnostics}
+%% =========================================================================
+
+Figures~\ref{fig:pit}, \ref{fig:qq}, and \ref{fig:coverage_curve}, together with Table~\ref{tab:coverage}, summarise the main calibration evidence under the Gaussian predictive law.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/figure3b_pit_histograms.pdf}
-    \caption{PIT histograms under the Gaussian predictive law.
-    The NLL model is near-uniform, whereas the composite model exhibits an inverse-U pattern indicative of over-dispersion.}
+    \caption{PIT histograms under the Gaussian predictive law.}
     \label{fig:pit}
 \end{figure}
-
-\subsection{Q-Q diagnostics}
-
-Figure~\ref{fig:qq} sharpens the tail-comparison argument.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/figure4_qq_grid.pdf}
-    \caption{Q-Q plots.
-    The NLL and GARCH residuals track the Gaussian line in the centre but bend away in the tails; the composite model shows both scale distortion and tail deviation.}
+    \caption{Q--Q plots under the Gaussian predictive law. Departures from the 45-degree line are mild for the NLL model in the centre of the distribution but become more visible in the tails; the composite model shows both scale distortion and tail deviation.}
     \label{fig:qq}
 \end{figure}
-
-\subsection{Interval coverage}
-
-Coverage diagnostics directly examine whether nominal probabilities match realised frequencies.
-Table~\ref{tab:coverage} and Figure~\ref{fig:coverage_curve} show that the NLL LSTM is close to ideal, the composite model systematically over-covers, and Student-$t$ intervals improve all models.
 
 \begin{table}[htbp]
 \centering
@@ -421,22 +367,17 @@ GARCH(1,1)     & Student-$t$& $0.81$ & $0.90$ & $0.95$ & $0.99$ & $0.007$ \\
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/figure6_coverage_calibration_curve.pdf}
-    \caption{Calibration curve: empirical vs nominal coverage under the Gaussian predictive law.
-    The NLL and GARCH curves lie close to the 45-degree line; the composite model sits systematically above it, confirming over-coverage.}
+    \caption{Calibration curve: empirical vs nominal coverage under the Gaussian predictive law.}
     \label{fig:coverage_curve}
 \end{figure}
 
-\subsection{GARCH(1,1) benchmark}
+Taken together, these diagnostics point to the same ranking. The NLL LSTM is reasonably well behaved, though not perfectly Gaussian in the tails. The composite model is clearly over-dispersed, with empirical coverage persistently above nominal levels. GARCH is very similar to the NLL LSTM and slightly stronger on some calibration checks.
 
-The GARCH results sharpen the interpretation of the LSTM findings.
-The NLL LSTM does not dominate GARCH in any decisive way on the calibration metrics.
-This matters because the LSTM is much richer in inputs and functional flexibility.
-If that additional complexity does not improve the quality of the predictive density, then its practical advantage lies elsewhere --- perhaps in directional forecasting, but not in uncertainty quantification.
-
+%% =========================================================================
 \subsection{Out-of-sample likelihood comparison}
+%% =========================================================================
 
-The most principled summary of probabilistic performance is the average out-of-sample log score (equivalently, negative log-likelihood).
-Table~\ref{tab:nllcompare} reports this alongside AIC for the Student-$t$ extension.
+Table~\ref{tab:nllcompare} reports the average out-of-sample log score, equivalently the negative log-likelihood, together with the post-hoc Student-$t$ extension results.
 
 \begin{table}[htbp]
 \centering
@@ -453,18 +394,15 @@ GARCH(1,1)     & $1.865$ & $1.833$ & $1275.1$ \\
 \end{ruledtabular}
 \end{table}
 
-A Diebold--Mariano test \citep{diebold1995comparing} on the daily log-score differentials reveals that the NLL LSTM significantly outperforms the composite LSTM ($\bar{d} = +0.137$ nats/day, $t = 4.65$, $p < 0.001$), confirming that the composite loss degrades probabilistic quality in a statistically robust sense.
-In contrast, the NLL LSTM does \emph{not} significantly outperform GARCH ($\bar{d} = +0.023$ nats/day, $t = 0.43$, $p = 0.67$).
-This is a striking result: despite conditioning on 51 features through a deep recurrent architecture, the NLL LSTM's predictive density is statistically indistinguishable from a three-parameter GARCH model that uses only lagged returns.
-The GARCH-versus-composite comparison is borderline ($p = 0.087$), suggesting that even GARCH tends to outperform the composite LSTM on probabilistic grounds.
+A Diebold--Mariano test \citep{diebold1995comparing} on the daily log-score differentials shows that the NLL LSTM significantly outperforms the composite LSTM ($\bar{d}=+0.137$ nats/day, $t=4.65$, $p<0.001$), but does \emph{not} significantly outperform GARCH ($\bar{d}=+0.023$ nats/day, $t=0.43$, $p=0.67$). The GARCH-versus-composite comparison is borderline ($p=0.087$), suggesting once again that the composite model is the weakest probabilistic forecaster of the three.
 
-To quantify the practical magnitude of these differences, the mean daily log-score gap between the NLL LSTM and the composite model is $0.197$ bits per day.
-Over the 348-day test period, this corresponds to a cumulative log-likelihood ratio of $95.1$, which is overwhelmingly significant.
-For the NLL LSTM versus GARCH, the daily gap is only $0.032$ bits per day --- a negligible difference relative to the daily volatility of the log-score differential.
+The NLL LSTM is clearly better than the composite model in terms of probabilistic fit, but its advantage over GARCH is not decisive.
 
-\subsection{\texorpdfstring{Student-$t$ extension}{Student-t extension}}
+%% =========================================================================
+\subsection{\texorpdfstring{Post-hoc Student-$t$ and conditional checks}{Post-hoc Student-t and conditional checks}}
+%% =========================================================================
 
-Table~\ref{tab:student_t} reports the fitted degrees-of-freedom parameter and the KS test results under the Student-$t$ predictive law.
+Table~\ref{tab:student_t} reports the fitted degrees-of-freedom parameter and the KS test results under the Student-$t$ residual law.
 
 \begin{table}[htbp]
 \centering
@@ -481,109 +419,76 @@ GARCH(1,1)     & $13.48$ & $0.034$ & $0.77$ \\
 \end{ruledtabular}
 \end{table}
 
-The Student-$t$ refit improves all three models.
-For the NLL LSTM and GARCH, the residuals now closely match the fitted law.
-The composite model still shows mild misspecification, but the improvement relative to the Gaussian case is substantial.
-This confirms that part of the observed miscalibration came from using a light-tailed predictive family rather than from volatility-scale errors alone.
+This post-hoc Student-$t$ refit improves the fit of the residual law for all three models. For the NLL LSTM and GARCH, the residuals align closely with the fitted law; the composite model still shows mild misspecification, but the improvement relative to the Gaussian case is substantial.
+
+Figure~\ref{fig:rollcov}, Figure~\ref{fig:condcal}, and Table~\ref{tab:christoffersen} examine whether the calibration results are stable over time and across regimes.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/figure7_student_t_qq_plots.pdf}
-    \caption{Q-Q plots of $z_t$ against the fitted Student-$t$ distribution: NLL LSTM (left, $\hat{\nu} = 16.15$) and composite LSTM (right, $\hat{\nu} = 29.07$).}
-    \label{fig:tqq}
-\end{figure}
-
-\subsection{Rolling calibration}
-
-Static summary metrics can hide time variation in forecast quality.
-Figures~\ref{fig:rollcov} and \ref{fig:rollcorr} therefore show rolling diagnostics over 60-day windows.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/figure8_rolling_95_coverage.pdf}
-    \caption{Rolling 60-day empirical coverage at the 95\% nominal level.
-    The NLL and GARCH models fluctuate around target coverage, while the composite model remains persistently above target.}
+    \includegraphics[width=0.94\textwidth]{figures/figure8_rolling_95_coverage.pdf}
+    \caption{Rolling 60-day empirical coverage at the 95\% nominal level.}
     \label{fig:rollcov}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/figure9_rolling_sigma_abs_return_corr.pdf}
-    \caption{Rolling 60-day correlation between predicted $\sigma_t$ and absolute returns $|r_t|$.
-    Both NLL and GARCH track realised volatility better than the composite model.}
-    \label{fig:rollcorr}
-\end{figure}
-
-These rolling views make clear that the composite model's miscalibration is not driven by a few outliers; it is persistent through time.
-The NLL model is more stable, though it also deteriorates during the most volatile episodes.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/figure10_conditional_calibration.pdf}
-    \caption{Conditional calibration: standardised residual distributions in high-volatility (top) and low-volatility (bottom) regimes, split at the median rolling 60-day realised volatility.
-    The composite model is especially over-dispersed in low-volatility periods.}
+    \includegraphics[width=0.80\textwidth]{figures/figure10_conditional_calibration.pdf}
+    \caption{Conditional calibration: standardised residual distributions in high-volatility (top) and low-volatility (bottom) regimes, split at the median rolling 60-day realised volatility. The composite model is especially over-dispersed in low-volatility periods.}
     \label{fig:condcal}
 \end{figure}
 
-The conditional split confirms the regime asymmetry.
-During high-volatility regimes, both LSTM variants show heavier tails and somewhat wider errors, but the NLL model remains approximately centred.
-During low-volatility regimes, the composite model's $\sigma_t$ is plainly too large, producing residual variance far below one.
-This is precisely the kind of state-dependent distortion that a proper-scoring-rule analysis is meant to detect.
-
-\subsection{Christoffersen conditional coverage test}
-
-To supplement the simple coverage counts, the 95\% intervals are also evaluated with the Christoffersen conditional coverage framework \citep{christoffersen1998evaluating}, which jointly tests whether exceedances occur with the correct frequency and are serially independent.
-At the 95\% level, the NLL LSTM and GARCH both pass the unconditional and independence components, while the composite model fails the unconditional coverage component due to its chronic over-coverage.
-This corroborates the earlier rolling-window evidence that the composite model's intervals are not merely conservative on average but systematically mis-scaled.
-
-\subsection{Position-sizing backtest}
-
-Although this report focuses on calibration rather than trading performance, a brief position-sizing illustration helps explain the economic importance of uncertainty quality.
-Suppose daily position size is scaled inversely with the predicted standard deviation, $w_t \propto 1/\sigma_t$.
-If $\sigma_t$ is overestimated, the strategy becomes too conservative and leaves return on the table; if it is underestimated, realised risk exceeds target.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/figure12_position_sizing_backtest.pdf}
-    \caption{Inverse-volatility position sizing backtest.
-    The NLL and GARCH volatility forecasts deliver more stable realised risk than the composite model.}
-    \label{fig:backtest}
-\end{figure}
-
-This simple illustration reinforces the central message: uncertainty calibration is not an aesthetic property of forecast bands but a practical requirement for any decision rule that consumes $\sigma_t$.
-
-\subsection{Calibration scorecard}
-
-Table~\ref{tab:scorecard} summarises the evidence across diagnostics.
-
 \begin{table}[htbp]
 \centering
-\caption{Calibration scorecard: pass/fail at 5\% significance.}
-\label{tab:scorecard}
+\caption{Christoffersen independence test \citep{christoffersen1998} at the 95\% level. $\pi_{01}$ and $\pi_{11}$ denote the estimated transition probabilities from no violation to violation and from violation to violation, respectively.}
+\label{tab:christoffersen}
 \begin{ruledtabular}
-\begin{tabular}{lccc}
-\textbf{Criterion} & \textbf{NLL LSTM} & \textbf{Composite LSTM} & \textbf{GARCH(1,1)} \\
+{\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcccccc}
+\textbf{Model} & \textbf{Violations} & $\pi_{01}$ & $\pi_{11}$ & \textbf{LR} & \textbf{$p$-value} & \textbf{Result} \\
 \hline
-Mean close to $0$                & Pass & Marginal & Pass \\
-Variance close to $1$            & Marginal & Fail & Pass \\
-Ljung--Box on $z_t$              & Pass & Pass & Pass \\
-Ljung--Box on $|z_t|$            & Pass & Fail & Pass \\
-KS normality                     & Pass & Fail & Pass \\
-AD normality                     & Marginal & Fail & Pass \\
-95\% interval coverage           & Pass & Fail & Pass \\
-PIT histogram                    & Near-uniform & Inverse-U & Near-uniform \\
-Student-$t$ improvement          & Yes & Yes & Yes \\
-Overall verdict                  & Partially calibrated & Not calibrated & Best calibrated \\
+NLL LSTM & $14/348$ & $0.0330$ & $0.2143$ & $6.109$ & $0.0135$ & Clustered \\
+Composite LSTM & $12/348$ & $0.0299$ & $0.1667$ & $3.583$ & $0.0584$ & Independent \\
+GARCH(1,1) & $13/348$ & $0.0359$ & $0.0769$ & $0.456$ & $0.4993$ & Independent \\
 \end{tabular}
+}
 \end{ruledtabular}
 \end{table}
 
-The scorecard makes the ranking transparent.
-The NLL LSTM is not perfect, but it is the only neural model that remains broadly defensible as a probabilistic forecaster.
-The composite model fails too many diagnostics for its $\sigma_t$ to be interpreted as calibrated uncertainty.
-GARCH is the strongest benchmark overall.
+The rolling coverage results show that the composite model's miscalibration is persistent rather than driven by a few isolated outliers. The regime split tells the same story: in low-volatility periods, the composite model's $\sigma_t$ is too large, producing residual variance well below one. The Christoffersen test adds another distinction between the better-performing models, with clustered exceedances for the NLL LSTM but not for GARCH.
 
 %% =========================================================================
+\subsection{Calibration scorecard}
+%% =========================================================================
+
+\begin{table}[!b]
+\centering
+\caption{Summary of the main Gaussian calibration diagnostics.}
+\label{tab:scorecard}
+\begin{ruledtabular}
+{\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.94}
+\begin{tabular}{lccc}
+\textbf{Diagnostic} & \textbf{NLL LSTM} & \textbf{Composite LSTM} & \textbf{GARCH(1,1)} \\
+\hline
+Residual variance close to $1$        & Marginal & Fail & Pass \\
+Ljung--Box on $|z_t|$                 & Pass     & Fail & Pass \\
+KS test against $N(0,1)$             & Pass     & Fail & Pass \\
+AD test against $N(0,1)$             & Marginal & Fail & Pass \\
+95\% interval coverage               & Pass     & Fail & Pass \\
+Christoffersen interval independence  & Fail     & Pass & Pass \\
+\hline
+Overall assessment                    & Partially calibrated & Not calibrated & Best calibrated \\
+\end{tabular}
+}
+\end{ruledtabular}
+\end{table}
+
+The overall picture is consistent across diagnostics. The NLL LSTM is the only neural model that remains broadly defensible as a probabilistic forecaster, whereas the composite model fails too many checks for its $\sigma_t$ to be interpreted as calibrated uncertainty. GARCH is marginally the strongest benchmark overall, with the NLL LSTM close behind.
+
+\FloatBarrier
+
 \section{Discussion}
 \label{sec:discussion}
 %% =========================================================================
@@ -592,70 +497,58 @@ GARCH is the strongest benchmark overall.
 
 The results support all three hypotheses stated in the introduction.
 
-\paragraph{Hypothesis 1: The pure-NLL LSTM is better calibrated than the composite-loss model.}
-Strongly supported.
-The NLL model outperforms the composite model on residual variance, coverage, PIT shape, KS/AD tests, and out-of-sample log score.
-This is exactly what one would expect from the theory of proper scoring rules: when a model is trained to maximise density accuracy, its uncertainty estimates retain statistical meaning; when additional utility-driven penalties are added, that meaning is diluted.
+The first hypothesis is strongly supported. The pure-NLL LSTM outperforms the composite-loss model on residual variance, coverage, PIT shape, KS/AD tests, and out-of-sample log score. This is consistent with the theory of proper scoring rules: when a model is trained to maximise density accuracy, its uncertainty estimates retain statistical meaning, whereas additional utility-driven penalties dilute that meaning.
 
-\paragraph{Hypothesis 2: Heavy tails matter, and a Student-$t$ law improves fit.}
-Supported.
-For every model, moving from Gaussian to Student-$t$ predictive assumptions improves Q-Q alignment and lowers the average NLL.
-The improvement is especially important in the tails, where Gaussian predictive intervals are too light.
-This finding is consistent with the well-known excess-kurtosis properties of commodity returns \citep{cont2001empirical}.
+The second hypothesis is also supported. For all three models, moving from a Gaussian to a Student-$t$ predictive law improves the fit and lowers the average NLL. The improvement is most visible in the tails, where Gaussian predictive intervals are too light. This is consistent with the excess-kurtosis properties of commodity returns \citep{cont2001empirical}.
 
-\paragraph{Hypothesis 3: The LSTM may not outperform GARCH in volatility calibration.}
-Also supported.
-The NLL LSTM is statistically indistinguishable from GARCH in density-forecast performance, and GARCH marginally dominates on several calibration diagnostics.
-This does not imply that deep learning is useless in finance; rather, it shows that richer nonlinear models do not automatically yield better probabilistic forecasts, particularly when the target is noisy and the evaluation horizon is short.
+The third hypothesis is supported as well. The NLL LSTM is statistically indistinguishable from GARCH in density-forecast performance, and GARCH is slightly stronger on several calibration checks. This suggests that richer nonlinear models do not automatically produce better probabilistic forecasts when the target is noisy and the horizon is short.
 
-\subsection{Comparison with GARCH(1,1)}
+\subsection{Implications and limitations}
 
-The GARCH comparison is methodologically important.
-Deep sequence models are often justified by their capacity to exploit nonlinear dependence across many features, but volatility forecasting has a very strong classical baseline.
-When the objective is density calibration rather than directional accuracy, parsimonious time-series models remain difficult to beat.
-This result echoes the broader empirical literature, which frequently finds that GARCH(1,1) is a surprisingly resilient volatility benchmark \citep{hansen2005forecast}.
+The comparison with GARCH is methodologically important. Deep sequence models are often motivated by their ability to exploit nonlinear dependence across many features, but volatility forecasting has a strong classical baseline. When the objective is density calibration rather than directional accuracy, parsimonious time-series models remain difficult to beat \citep{hansen2005forecast}.
 
-\subsection{Implications for position sizing}
+Using $\sigma_t$ for position sizing should therefore be done cautiously. The pure-NLL model may still be usable with recalibration or a heavier-tailed predictive family. The composite model is less reliable for this purpose, because it overstates uncertainty in calm periods and leaves residual structure unmodelled. A trading system based directly on those outputs would likely under-utilise capital while still failing to control tail risk properly.
 
-Using $\sigma_t$ to size positions should therefore be interpreted cautiously.
-The NLL model's volatility estimates may be usable with further calibration adjustments or a heavier-tailed predictive family.
-The composite model's estimates, however, would embed a systematic risk-allocation error because they overstate uncertainty in calm periods and leave residual structure unmodelled.
-A trading system built on those raw $\sigma_t$ outputs would likely under-utilise capital while still failing to control tail risk properly.
-
-\subsection{Limitations}
-
-Several caveats qualify the conclusions.
-First, the report evaluates only one market (WTI crude oil) and one forecast horizon (one day).
-Second, the analysis is ex post and based on exported model forecasts rather than end-to-end retraining.
-Third, some diagnostics --- especially goodness-of-fit tests in the tails --- have limited power in a single year of daily data.
-Finally, the report does not evaluate whether post-hoc recalibration methods such as isotonic regression on predictive intervals \citep{kuleshov2018accurate} could repair the composite model sufficiently for practical use.
+Several caveats qualify these conclusions. The report studies only one market and one forecast horizon, uses exported forecasts rather than end-to-end retraining, and relies on a relatively small test sample for tail-focused diagnostics. It also does not test whether post-hoc recalibration methods such as isotonic regression on predictive intervals \citep{kuleshov2018accurate} could repair the composite model sufficiently for practical use.
 
 %% =========================================================================
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 %% =========================================================================
 
-The main conclusion is clear: the uncertainty estimates from the pure-NLL LSTM are only partially calibrated, whereas those from the composite-loss LSTM are not calibrated in a probabilistic sense.
-The composite objective improves directional forecasting but materially degrades the meaning of $\sigma_t$ as an estimator of predictive uncertainty.
-A simple GARCH(1,1) benchmark performs at least as well as the NLL LSTM on most calibration diagnostics and slightly better on some.
+Overall, the uncertainty estimates from the pure-NLL LSTM are only partially calibrated, whereas those from the composite-loss LSTM are not calibrated in a probabilistic sense. The composite objective improves directional forecasting but weakens the interpretation of $\sigma_t$ as an estimator of predictive uncertainty. A simple GARCH(1,1) benchmark performs at least as well as the NLL LSTM on most calibration diagnostics and slightly better on some.
 
-This outcome sharpens the interpretation of our earlier findings.
-The LSTM's volatility output may still be \emph{useful} as a decision variable, but it should not be described as a calibrated predictive standard deviation without formal testing.
-In practical terms, the safest interpretation is:
-\begin{itemize}
-    \item the pure-NLL model provides a reasonable first-pass probabilistic forecast, but it would benefit from a heavier-tailed observation model or post-hoc recalibration;
-    \item the composite model should be treated as a direction-oriented decision model rather than a trustworthy probabilistic forecaster;
-    \item classical volatility models remain a strong benchmark and should not be omitted when assessing uncertainty quality.
-\end{itemize}
+The main practical implication is that the LSTM's volatility output may still be useful as a decision variable, but it should not be described as a calibrated predictive standard deviation without formal testing. The pure-NLL model remains a reasonable first-pass probabilistic forecaster, especially with a heavier-tailed observation model or post-hoc recalibration, whereas the composite model is better interpreted as a direction-oriented decision model than as a trustworthy probabilistic forecaster.
 
-Future work should go beyond the present audit in three directions.
-First, the LSTM could be retrained directly under a Student-$t$ or other heavy-tailed likelihood.
-Second, modern post-hoc calibration schemes for regression uncertainty \citep{kuleshov2018accurate} could be applied to the exported forecasts.
-Third, if position sizing is the target application, then utility should be evaluated jointly with calibration so that the trade-off between decision performance and probabilistic correctness is made explicit.
+Future work could extend this analysis in three directions. First, the LSTM could be retrained directly under a Student-$t$ or other heavy-tailed likelihood. Second, post-hoc calibration methods for regression uncertainty \citep{kuleshov2018accurate} could be applied to the exported forecasts. Third, if position sizing is the target application, calibration and utility should be evaluated jointly so that the trade-off between decision performance and probabilistic correctness is made explicit.
 
 \section{Bibliography}
+\vspace*{-1.75\baselineskip}
 
 \bibliographystyle{plainnat}
+\makeatletter
+\def\bib@device#1#2{%
+ \hb@xt@\z@{%
+  \hb@xt@#1{%
+   \hfil
+   \phantomsection
+   \hb@xt@#2{%
+    \skip@\z@\@plus-1fil\relax
+                           \leaders\hrule height.25 \p@ depth.25 \p@ \hskip\z@\@plus1fil
+    \hskip\skip@
+    \hskip\z@\@plus0.125fil\leaders\hrule height.375\p@ depth.375\p@ \hskip\z@\@plus0.75fil \hskip\z@\@plus0.125fil
+    \hskip\skip@
+    \hskip\z@\@plus0.25 fil\leaders\hrule height.5  \p@ depth.5  \p@ \hskip\z@\@plus0.5 fil \hskip\z@\@plus0.25 fil
+    \hskip\skip@
+    \hskip\z@\@plus0.375fil\leaders\hrule height.625\p@ depth.625\p@ \hskip\z@\@plus0.25fil \hskip\z@\@plus0.375fil
+   }%
+   \hfil
+  }%
+  \hss
+ }%
+}
+\makeatother
+\small
 \bibliography{references}
 
 \end{document}
